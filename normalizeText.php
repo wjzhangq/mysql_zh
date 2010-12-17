@@ -3,12 +3,14 @@
 //"SHOW GLOBAL VARIABLES LIKE 'ft\\_min\\_word\\_len'";
 
 class normalizeText{
-	static $mMinSearchLength;
+	var $mMinSearchLength;
 	var $strictMatching = true;
 	var $searchTerms = array();
+	var $ignorecase = true;
 	
-	function __construct(){
-		self::$mMinSearchLength = 4;
+	function __construct($mMinSearchLength=4,$ignorecase=true){
+		$this->mMinSearchLength = 4;
+		$this->ignorecase = $ignorecase;
 	}
 	
 	function normalize($str){
@@ -48,8 +50,31 @@ class normalizeText{
 		return $out;
 	}
 	
-	function resume($str){
+	function decode($str){
+	    $ret = array();
+		$tmp = explode(' ', $str);
+		foreach($tmp as $k=>$v){
+			if (strncmp($v, 'u8', 2) == 0){
+				$v = substr($v, 2);
+				$seq =	array_map(array($this, 'hexChr'), str_split($v,2));
+				$ret[] = implode('', $seq);
+			}else{
+				$v_len = strlen($v);
+				if ($v_len >4 && $v[$v_len -4] == 'u' && $v[$v_len -3] == '8' && $v[$v_len -2] == '0' && $v[$v_len -1] == '0'){
+					$out = substr($v, 0, $v_len -4);
+				}else if ($v_len > 8 && strpos($v, 'u800u82e') !== false){
+					$out = preg_replace("/(\w)u800u82e(\w|\*)/u", "$1.$2", $v);
+					if (strpos($out, 'u800') !== false){
+						$out = preg_replace('/u800([\s|\n]*)/', "$1", $out);
+					}
+				}else{
+					$out = $v;
+				}
+				$ret[] = $out;
+			}
+		}
 		
+		return implode('', $ret);
 	}
 	
 	/** 
@@ -147,7 +172,7 @@ class normalizeText{
 	
 	
 	function lc($str){
-		return strtolower($str);
+		return $this->ignorecase ? strtolower($str) : $str;
 	}
 	
 	/**
@@ -166,12 +191,12 @@ class normalizeText{
 	 * @return int
 	 */
 	protected function minSearchLength() {
-		if( is_null( self::$mMinSearchLength ) ) {
+		if( is_null( $this->mMinSearchLength ) ) {
 			$sql = "SHOW GLOBAL VARIABLES LIKE 'ft\\_min\\_word\\_len'";
 			
-			self::$mMinSearchLength = 0;
+			$this->mMinSearchLength = 0;
 		}
-		return self::$mMinSearchLength;
+		return $this->mMinSearchLength;
 	}
 	
 	protected static function insertSpace( $string, $pattern ) {
@@ -187,7 +212,11 @@ class normalizeText{
 	function regexTerm( $string, $wildcard ) {
 		$regex = preg_quote( $string, '/' );
 		return $regex;
-	}	
+	}
+	
+	function hexChr($str){
+    	return chr(hexdec($str));
+    }
 }
 
 function wfDebug($str){
