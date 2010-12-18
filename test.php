@@ -2,18 +2,11 @@
 require('simpleMysql.php');
 require('normalizeText.php');
 $nt = new normalizeText();
-$str = $nt->normalize('内容页面
-多.媒体10.10.220.1a
-
-A
-帮 助和afa计划页面
-全部
-高级
-下面显示从第1条开始的1条结果：
-');
+$str = $nt->normalize('写代码需谋定而后动，没有想清楚绝对不动手,10.10.2.1测试ip地址');
 echo $str;
+
 echo $nt->decode($str);
- $searchon = $nt->parseQuery('10.10.220.1');
+ $searchon = $nt->parseQuery('绝对不');
  $sql = "SELECT * from `full` WHERE MATCH(`index`) AGAINST('$searchon' IN BOOLEAN MODE)";
  
  echo $sql;

@@ -13,7 +13,7 @@ class normalizeText{
 		$this->ignorecase = $ignorecase;
 	}
 	
-	function normalize($str){
+	function encode($str){
 		//word segmentation
 		$out = $this->wordSegmentation($str);
 		
@@ -60,14 +60,14 @@ class normalizeText{
 				$ret[] = implode('', $seq);
 			}else{
 				$v_len = strlen($v);
-				if ($v_len >4 && $v[$v_len -4] == 'u' && $v[$v_len -3] == '8' && $v[$v_len -2] == '0' && $v[$v_len -1] == '0'){
-					$out = substr($v, 0, $v_len -4);
-				}else if ($v_len > 8 && strpos($v, 'u800u82e') !== false){
-					$out = preg_replace("/(\w)u800u82e(\w|\*)/u", "$1.$2", $v);
+                if ($v_len > 8 && strpos($v, 'u82e') !== false){
+					$out = preg_replace("/(\w)u82e(\w|\*)/u", "$1.$2", $v);
 					if (strpos($out, 'u800') !== false){
 						$out = preg_replace('/u800([\s|\n]*)/', "$1", $out);
 					}
-				}else{
+				}else if($v_len >4 && $v[$v_len -4] == 'u' && $v[$v_len -3] == '8' && $v[$v_len -2] == '0' && $v[$v_len -1] == '0')
+				    $out = substr($v, 0, $v_len -4);
+				else{
 					$out = $v;
 				}
 				$ret[] = $out;
@@ -81,7 +81,7 @@ class normalizeText{
 	 * Parse the user's query and transform it into an SQL fragment which will 
 	 * become part of a WHERE clause
 	 */
-	function parseQuery( $filteredText) {
+	function queryEncode( $filteredText) {
 		$lc = $this->legalSearchChars(); // Minus format chars
 		$searchon = '';
 		$this->searchTerms = array();
@@ -131,7 +131,7 @@ class normalizeText{
 				if( count( $strippedVariants) > 1 )
 					$searchon .= '(';
 				foreach( $strippedVariants as $stripped ) {
-					$stripped = $this->normalize( $stripped );
+					$stripped = $this->encode( $stripped );
 					if( $nonQuoted && strpos( $stripped, ' ' ) !== false ) {
 						// Hack for Chinese: we need to toss in quotes for
 						// multiple-character phrases since normalizeForSearch()
@@ -220,8 +220,22 @@ class normalizeText{
 }
 
 function wfDebug($str){
-	echo $str;
+	//echo $str;
 }
 
+
+if (count(explode($_SERVER['SCRIPT_FILENAME'], __FILE__)) > 1){
+    //没有被包含
+    $nt = new normalizeText(4,false);
+    echo "start encode\n";
+    $encode = $nt->encode('写代码需谋定而后动，没有想清楚绝对不动手,10.10.2.1测试ip地址');
+    echo $encode, "\n";
+    echo "gen sql:\n";
+    $searchon = $nt->queryEncode('绝对不');
+    $sql = "SELECT *, MATCH(`content`) AGAINST('$searchon' IN BOOLEAN MODE) as rate from `articles` WHERE MATCH(`content`) AGAINST('$searchon' IN BOOLEAN MODE)";
+    echo $sql, "\n";
+    echo "start decode:\n";
+    echo $nt->decode($encode);
+}
 
 ?>
